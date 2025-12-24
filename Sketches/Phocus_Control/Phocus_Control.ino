@@ -4,17 +4,17 @@ HX711 scale(4,5);
 float calibration_factor = -900; // This must be tuned for each load cell
 float units; // Variable for storing current measurement
 float MOSFET = 9; // this is output pin for MOSFET
-int timer = 1300; // delay timing
+int timer = 250; // delay timing (reduced from 1300 for faster response)
 int range = 10; // +/- range in which weight can bounce around
 int nominal = 0;
 int lowerLimit = 0;
-int history = 5;
-int lastFive[] = {
-  0,0,0,0,0
-}; // This is array where last ten measurements will be stored
+int history = 3; // reduced from 5 for faster response
+int lastReadings[] = {
+  0,0,0
+}; // Array for last 3 measurements
 int scorecard[] = {
-  0,0,0,0,0
-}; // Tracks cycles where weight decreased - five cycles with decreased weight results in music cut off
+  0,0,0
+}; // Tracks cycles where weight decreased - 3 consecutive cycles results in music cut off
 
 
 void setup() {
@@ -32,17 +32,17 @@ void loop() {
   Serial.print(units);
   Serial.print(" grams"); 
 
-  // bump last_ten array to add latest measurement (units) and remove oldest measurement
+  // bump array to add latest measurement and remove oldest
   for (int n = 0; n < (history-1); n++) {
-    lastFive[n] = lastFive[n+1];
+    lastReadings[n] = lastReadings[n+1];
   }
-  lastFive[(history-1)] = units;
+  lastReadings[(history-1)] = units;
 
-  // calculate the average of the last five values
+  // calculate the rolling average
   int total = 0;
   int average = 0;
   for (int i=0; i<=(history-1); i++){
-    total = total + lastFive[i];
+    total = total + lastReadings[i];
   }
   average = (total/history);
   Serial.print(" average: ");
@@ -76,8 +76,10 @@ void loop() {
     score = score + scorecard[k];
   }
   
-  if(score == 5) {
-    digitalWrite(MOSFET,0);
+  if(score == history) {
+    digitalWrite(MOSFET, LOW);
+    nominal = 0;  // Reset so it can detect phone return
+    lowerLimit = 0;
     Serial.print("OFF");
     Serial.println();
   }
